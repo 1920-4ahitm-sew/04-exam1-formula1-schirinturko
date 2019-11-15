@@ -53,29 +53,37 @@ public class InitBean {
      * @param racesFileName
      */
     private void readRacesFromFile(String racesFileName) {
-        ClassLoader classLoader = getClass().getClassLoader();
-        File file = new File(classLoader.getResource("/RACES_FILE_NAME").getFile());
-        String line = null;
-        boolean firstline = true;
+//        ClassLoader classLoader = getClass().getClassLoader();
+//        File file = new File(classLoader.getResource("RACES_FILE_NAME").getFile());
+//        String line = null;
+//        boolean firstline = true;
+//
+//        try{
+//            /*BufferedReader br = new BufferedReader(new InputStreamReader(getClass()
+//                    .getResourceAsStream("/races.csv")));*/
+//            BufferedReader br = new BufferedReader(new FileReader(file));
+//
+//            br.readLine();
+//
+//            while((line = br.readLine()) != null){
+//                String[] row = line.split(";");
+//
+//                System.out.println("output");
+//                //Client client = ClientBuilder.newClient();
+//                //WebTarget web = client.target("")
+//
+//                //List<Race> races = this.entityManager.createNamedQuery("Race.", Race.class).setParameter()
+//            }
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
-        try{
-            /*BufferedReader br = new BufferedReader(new InputStreamReader(getClass()
-                    .getResourceAsStream("/races.csv")));*/
-            BufferedReader br = new BufferedReader(new FileReader(file));
-
-            br.readLine();
-
-            while((line = br.readLine()) != null){
-                String[] row = line.split(";");
-
-                //Client client = ClientBuilder.newClient();
-                //WebTarget web = client.target("")
-
-                //List<Race> races = this.entityManager.createNamedQuery("Race.", Race.class).setParameter()
-
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        URL url = Thread.currentThread().getContextClassLoader()
+                .getResource(RACES_FILE_NAME);
+        try (Stream stream = Files.lines(Paths.get(url.getPath()))) {
+            stream.forEach(System.out::println);
         } catch (IOException e) {
             e.printStackTrace();
         }
