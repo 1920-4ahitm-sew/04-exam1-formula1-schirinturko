@@ -15,6 +15,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.List;
 
 public class ResultsRestClient {
 
@@ -29,8 +30,12 @@ public class ResultsRestClient {
      */
     public void readResultsFromEndpoint() {
 
-        JsonArray payload = null;
-
+        client = ClientBuilder.newClient();
+        target = client.target(RESULTS_ENDPOINT);
+        Response response = this.target.request(MediaType.APPLICATION_JSON).get();
+        List<JsonObject> jsonArray = JsonValue.getValueArray(JsonObject.class);
+        JsonArray payload = response.readEntity(JsonArray.class);
+        System.out.println("*****" + payload);
         persistResult(payload);
     }
 
@@ -55,7 +60,11 @@ public class ResultsRestClient {
      */
     @Transactional
     void persistResult(JsonArray resultsJson) {
-
+        JsonObject jsonObj = new JsonObject(json.get("msg").toString());
+        for (int i = 0; i < resultsJson.length(); i++){
+            JsonArray object = (JsonArray) resultsJson.getJsonObject(i);
+            System.out.println(jsonObj.getString("body"));
+        }
     }
 
 }
