@@ -18,6 +18,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import java.io.*;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -38,7 +39,7 @@ public class InitBean {
     @Inject
     ResultsRestClient client;
 
-
+    @Transactional
     public void init(@Observes @Initialized(ApplicationScoped.class) Object init) {
 
         readTeamsAndDriversFromFile(TEAM_FILE_NAME);
@@ -53,40 +54,23 @@ public class InitBean {
      * @param racesFileName
      */
     private void readRacesFromFile(String racesFileName) {
-//        ClassLoader classLoader = getClass().getClassLoader();
-//        File file = new File(classLoader.getResource("RACES_FILE_NAME").getFile());
-//        String line = null;
-//        boolean firstline = true;
-//
-//        try{
-//            /*BufferedReader br = new BufferedReader(new InputStreamReader(getClass()
-//                    .getResourceAsStream("/races.csv")));*/
-//            BufferedReader br = new BufferedReader(new FileReader(file));
-//
-//            br.readLine();
-//
-//            while((line = br.readLine()) != null){
-//                String[] row = line.split(";");
-//
-//                System.out.println("output");
-//                //Client client = ClientBuilder.newClient();
-//                //WebTarget web = client.target("")
-//
-//                //List<Race> races = this.entityManager.createNamedQuery("Race.", Race.class).setParameter()
-//            }
-//        } catch (FileNotFoundException e) {
-//            e.printStackTrace();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
+        //csv einlesen
         URL url = Thread.currentThread().getContextClassLoader()
                 .getResource(RACES_FILE_NAME);
-        try (Stream stream = Files.lines(Paths.get(url.getPath()))) {
-            stream.forEach(System.out::println);
+        try (Stream<String> stream = Files.lines(Paths.get(url.getPath()))) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.YYYY");
+            LocalDate formatDate = LocalDate.parse(formatter);
+
+            stream
+                    .skip(1)
+                    .map(s -> s.split(";"))
+                    .map(a -> new Race(Long.getLong(a[1]), a[2], DateTimeFormatter.formatDate(a[3]))
+                    .forEach(em::merge);
+                    //.forEach(System.out::println);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     /**
@@ -97,33 +81,7 @@ public class InitBean {
      * @param teamFileName
      */
     private void readTeamsAndDriversFromFile(String teamFileName) {
-        /*ClassLoader classLoader = getClass().getClassLoader();
-        File file = new File(classLoader.getResource("/TEAM_FILE_NAME").getFile());
-        String line = null;
-        boolean firstline = true;
-
-        try{
-            /*BufferedReader br = new BufferedReader(new InputStreamReader(getClass()
-                    .getResourceAsStream("/")));*/
-            /*BufferedReader br = new BufferedReader(new FileReader(file));
-
-            br.readLine();
-
-            while((line = br.readLine()) != null){
-                String[] row = line.split(";");
-
-                //Client client = ClientBuilder.newClient();
-                //WebTarget web = client.target("")
-
-                List<Team> races = this.entityManager.
-
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }*/
-
+        //csv einlesen
         URL url = Thread.currentThread().getContextClassLoader()
                 .getResource(TEAM_FILE_NAME);
         try (Stream stream = Files.lines(Paths.get(url.getPath()))) {
@@ -131,6 +89,14 @@ public class InitBean {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        new BufferedReader(new InputStreamReader(this.getClass()
+                .getResourceAsStream(RACES_FILE_NAME), Charset.defaultCharset()))
+                .lines()
+                .skip(1)
+                .map(s -> s.split(";"))
+                .map(a -> new Race(a[1], a[2], a[3]))
+                .forEach(em::merge);
     }
 
     /**
@@ -147,6 +113,5 @@ public class InitBean {
     private void persistTeamAndDrivers(String[] line) {
 
     }
-
 
 }
