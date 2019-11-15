@@ -13,13 +13,17 @@ import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.transaction.Transactional;
-import java.io.IOException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import java.io.*;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.stream.Stream;
 
 @ApplicationScoped
@@ -49,8 +53,32 @@ public class InitBean {
      * @param racesFileName
      */
     private void readRacesFromFile(String racesFileName) {
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(classLoader.getResource("/RACES_FILE_NAME").getFile());
+        String line = null;
+        boolean firstline = true;
 
+        try{
+            /*BufferedReader br = new BufferedReader(new InputStreamReader(getClass()
+                    .getResourceAsStream("/races.csv")));*/
+            BufferedReader br = new BufferedReader(new FileReader(file));
 
+            br.readLine();
+
+            while((line = br.readLine()) != null){
+                String[] row = line.split(";");
+
+                //Client client = ClientBuilder.newClient();
+                //WebTarget web = client.target("")
+
+                //List<Race> races = this.entityManager.createNamedQuery("Race.", Race.class).setParameter()
+
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -61,7 +89,32 @@ public class InitBean {
      * @param teamFileName
      */
     private void readTeamsAndDriversFromFile(String teamFileName) {
+        /*ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(classLoader.getResource("/TEAM_FILE_NAME").getFile());
+        String line = null;
+        boolean firstline = true;
 
+        try{
+            /*BufferedReader br = new BufferedReader(new InputStreamReader(getClass()
+                    .getResourceAsStream("/")));*/
+            /*BufferedReader br = new BufferedReader(new FileReader(file));
+
+            br.readLine();
+
+            while((line = br.readLine()) != null){
+                String[] row = line.split(";");
+
+                //Client client = ClientBuilder.newClient();
+                //WebTarget web = client.target("")
+
+                List<Team> races = this.entityManager.
+
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }*/
     }
 
     /**
