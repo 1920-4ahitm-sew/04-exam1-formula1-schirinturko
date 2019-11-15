@@ -123,6 +123,14 @@ public class InitBean {
         } catch (IOException e) {
             e.printStackTrace();
         }*/
+
+        URL url = Thread.currentThread().getContextClassLoader()
+                .getResource(TEAM_FILE_NAME);
+        try (Stream stream = Files.lines(Paths.get(url.getPath()))) {
+            stream.forEach(System.out::println);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
