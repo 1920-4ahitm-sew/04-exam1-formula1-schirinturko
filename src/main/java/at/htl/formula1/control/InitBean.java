@@ -38,6 +38,7 @@ public class InitBean {
 
     @Inject
     ResultsRestClient client;
+    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     @Transactional
     public void init(@Observes @Initialized(ApplicationScoped.class) Object init) {
@@ -54,23 +55,20 @@ public class InitBean {
      * @param racesFileName
      */
     private void readRacesFromFile(String racesFileName) {
-        //csv einlesen
-        URL url = Thread.currentThread().getContextClassLoader()
-                .getResource(RACES_FILE_NAME);
-        try (Stream<String> stream = Files.lines(Paths.get(url.getPath()))) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.YYYY");
-            LocalDate formatDate = LocalDate.parse(formatter);
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
+        URL url = Thread.currentThread().getContextClassLoader()
+                .getResource(racesFileName);
+        try (Stream<String> stream = Files.lines(Paths.get(url.getPath().substring(3)), StandardCharsets.UTF_8)) {
             stream
                     .skip(1)
-                    .map(s -> s.split(";"))
-                    .map(a -> new Race(Long.getLong(a[1]), a[2], DateTimeFormatter.formatDate(a[3]))
-                    .forEach(em::merge);
+                    .map((String s) -> s.split(";"))
+                    .map(a -> new Race(Long.valueOf(a[0]), a[1], LocalDate.parse(a[2], dtf)))
+                    .forEach(em::persist); //Daten in die DB einfügen
                     //.forEach(System.out::println);
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -81,22 +79,16 @@ public class InitBean {
      * @param teamFileName
      */
     private void readTeamsAndDriversFromFile(String teamFileName) {
-        //csv einlesen
         URL url = Thread.currentThread().getContextClassLoader()
-                .getResource(TEAM_FILE_NAME);
-        try (Stream stream = Files.lines(Paths.get(url.getPath()))) {
-            stream.forEach(System.out::println);
+                .getResource(teamFileName);
+        try (Stream<String> stream = Files.lines(Paths.get(url.getPath().substring(3)), StandardCharsets.UTF_8)) {
+            stream
+                    .skip(1)
+                    .map((String s) -> s.split(";"))
+                    .forEach(this::persistTeamAndDrivers);
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        new BufferedReader(new InputStreamReader(this.getClass()
-                .getResourceAsStream(RACES_FILE_NAME), Charset.defaultCharset()))
-                .lines()
-                .skip(1)
-                .map(s -> s.split(";"))
-                .map(a -> new Race(a[1], a[2], a[3]))
-                .forEach(em::merge);
     }
 
     /**
@@ -111,7 +103,22 @@ public class InitBean {
      */
 
     private void persistTeamAndDrivers(String[] line) {
+        Team team = null; // team auf null setzen
 
+        try {
+            team = em
+                        .createNamedQuery("team.findByName", Team.class)
+                        .setParameter("NAME", line[0])
+                        .getSingleResult();
+        } catch (NoResultException ex){
+            team = new Team(line[0]);
+            em.persist(team);
+        }
+
+        Driver d1 = new Driver(line[1], team);
+        Driver d2 = new Driver(line[2], team);
+        em.persist(d1);
+        em.persist(d2);
     }
 
 }
