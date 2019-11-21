@@ -10,19 +10,8 @@ import java.time.LocalDate;
  */
 @Entity
 @Table(name = "F1_RACES")
-@NamedQueries({
-        @NamedQuery(
-                name = "Race.findAll",
-                query = "select r from Race r"
-        ),
-        @NamedQuery(
-                name = "Race.findByCountry",
-                query = "select r from Race r where r.name = :NAME"
-        )
-})
 public class Race {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String country;
     private LocalDate date;
