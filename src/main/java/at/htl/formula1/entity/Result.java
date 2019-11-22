@@ -7,11 +7,34 @@ import javax.persistence.*;
  * <p>
  * The id's are assigned by the database.
  */
+@Entity
+@Table(name = "F1_RESULT")
+@NamedQueries({
+        @NamedQuery(
+                name = "Result.sumPointsForDriver",
+                query = "select sum(r.points) from Result r where r.driver.name = :NAME"
+        ),
+        @NamedQuery(
+                name = "Result.findWinnerOfRace",
+                query = "select r1.driver from Result r1 where r1.race = :RACE " +
+                        "and r1.points >= all(select max(r2.points) from Result r2 where r2.race=r1.race)"
+        ),
+        @NamedQuery(
+                name = "Result.findRacesWonByTeam",
+                query = "select r.race from Result r where r.driver.team = :TEAM and r.position=1"
+        ),
+        @NamedQuery(
+                name = "Result.sumPointsForAllDrivers",
+                query = "select r.driver.name, sum(r.points) from Result r group by r.driver.name"
+        )
+})
 public class Result {
 
     @Transient
     public int[] pointsPerPosition = {0, 25, 18, 15, 12, 10, 8, 6, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
     @ManyToOne
     private Race race;
