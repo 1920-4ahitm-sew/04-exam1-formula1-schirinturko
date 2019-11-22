@@ -1,0 +1,477 @@
+= Testdokumentation
+
+(Anmerkung: Programm ist nicht lauffähig ->  No query defined for that name [team.findByName])
+
+== Aufgabe 1: Import CSV
+=== #readRacesFromFile() (InitBean.java):#
+* Einlesen der Datei "races.csv" und Speichern der Objekte in der Tabelle F1_RACE
+
+=== Falscher Code:
+[source,java]
+----
+URL url = Thread.currentThread().getContextClassLoader() // <1>
+                .getResource(RACES_FILE_NAME);
+        try (Stream<String> stream = Files.lines(Paths.get(url.getPath()))) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.YYYY");
+            LocalDate formatDate = LocalDate.parse(formatter);
+
+            stream
+                    .skip(1)
+                    .map(s -> s.split(";"))
+                    .map(a -> new Race(Long.getLong(a[1]), a[2], DateTimeFormatter.formatDate(a[3]))
+                    .forEach(em::merge);
+                    //.forEach(System.out::println);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+----
+
+* Ohne Lambda, DateTimeFormatter und LocalDate hat es funktioniert, also nur mit stream.forEach(System.out::println);.
+    Eine Seite mit 'Forbidden' wurde ausgegeben.
+* DateTimeFormatter gehört nicht in die try-catch.
+* Das Format für das 3. Array (a[3]) ist falsch
+
+=== Richtiger Code:
+[source,java]
+----
+DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+        URL url = Thread.currentThread().getContextClassLoader()
+                .getResource(racesFileName);
+        try (Stream<String> stream = Files.lines(Paths.get(url.getPath().substring(3)), StandardCharsets.UTF_8)) {
+            stream
+                    .skip(1) // <1>
+                    .map((String s) -> s.split(";")) // <2>
+                    .map(a -> new Race(Long.valueOf(a[0]), a[1], LocalDate.parse(a[2], dtf))) // <3>
+                    .forEach(em::persist); // <4>
+                    //.forEach(System.out::println);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+----
+* DateTimeFormatter gehört außerhalb der try-catch, weil es für das 3. Array (a[2]) benutzt wird.
+* .subString(3) ...man liest die URL erst von der 3. Stelle (Windows hat Probleme mit dem Pfad C://, das Doppelpunkt war das Problem)
+* StandardCharsets.UTF_8 ...für die Umlaute, falls es welche gibt
+<1> Die erste Zeile von der CSV skippen
+<2> Einzelne Daten trennen (mit dem ;)
+<3> :
+** Das 1. Array (a[0]) hat einen Long Type (siehe Race Class), daher gehört davor ein Long.valueOf
+** Das 2. Array (a[1]) hat einen String Type (siehe Race Class), daher kommt davor nichts
+** Das 3. Array hat einen LocalDate Type (siehe Race Class), daher wird das LocalDate.parse verwendet.
+    Innerhalb der Klammer wird das DateTimeFormatter dtf verwendet, weil die Dates in der CSV im Format "dd.MM.YYYY" eingetragen sind.
+<4> mit persist kann man die Daten in die DB einfügen
+
+=== #readTeamsAndDriversFromFile() (InitBean.java):#
+* Einlesen der Datei "teams.csv".
+* Das String-Array jeder einzelnen Zeile wird der Methode persistTeamAndDrivers(...) übergeben.
+
+=== Falscher Code:
+[source,java]
+----
+ URL url = Thread.currentThread().getContextClassLoader()
+                .getResource(TEAM_FILE_NAME);
+        try (Stream stream = Files.lines(Paths.get(url.getPath()))) {
+            stream.forEach(System.out::println);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        new BufferedReader(new InputStreamReader(this.getClass()
+                .getResourceAsStream(RACES_FILE_NAME), Charset.defaultCharset()))
+                .lines()
+                .skip(1)
+                .map(s -> s.split(";"))
+                .map(a -> new Race(a[1], a[2], a[3]))
+                .forEach(em::merge);
+----
+
+=== Richtiger Code:
+[source,java]
+----
+URL url = Thread.currentThread().getContextClassLoader()
+                .getResource(teamFileName);
+        try (Stream<String> stream = Files.lines(Paths.get(url.getPath().subString(3)), StandardCharsets.UTF_8)) {
+            stream
+                    .skip(1)
+                    .map((String s) -> s.split(";"))
+                    .forEach(this::persistTeamAndDrivers); // <1>
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+----
+<1> Das String-Array jeder einzelnen Zeile wird der Methode persistTeamAndDrivers(...) übergeben.
+    Damit die Daten in der Table angezeit werden, muss man die Methode persistTeamAndDrivers() erstellen,
+    da man hier nur die CSV einliest, aber nicht abspeichert.
+
+=== #persistTeamAndDrivers() (InitBean.java):#
+* Es wird überprüft ob es das übergebene Team schon in der Tabelle F1_TEAM gibt.
+* Falls nicht, wird das Team in der Tabelle gespeichert.
+* Wenn es das Team schon gibt, dann liest man das Team aus der Tabelle und erstellt ein Objekt (der Klasse Team).
+* Dieses Objekt wird verwendet, um die Fahrer mit Ihrem jeweiligen Team in der Tabelle F1_DRIVER zu speichern.
+* @param line String-Array mit den einzelnen Werten der csv-Datei
+
+=== Falscher Code:
+(nicht gemacht)
+
+=== Richtiger Code:
+[source,java]
+----
+Team team = null; // <1>
+
+        try { // <2>
+            team = em
+                        .createNamedQuery("team.findByName", Team.class) // <3>
+                        .setParameter("NAME", line[0]) // <4>
+                        .getSingleResult(); // <5>
+        } catch (NoResultException ex){ // <6>
+            team = new Team(line[0]);
+            em.persist(team);
+        }
+
+        Driver d1 = new Driver(line[1], team); // <7>
+        Driver d2 = new Driver(line[2], team);
+        em.persist(d1);
+        em.persist(d2);
+----
+
+<1> team auf null setzen
+<2> Es wird überprüft ob es das übergebene Team schon in der Tabelle F1_TEAM gibt.
+    Falls nicht, wird das Team in der Tabelle gespeichert.
+<3> Dient zum Definieren von Abfragen mit Namen in Zuordnungsdateien oder Anmerkungen
+<4> Bevor die Query ausgeführt werden kann, muss ein Parameterwert mit der Methode setParameter festgelegt werden.
+    Die Methode setParameter unterstützt die Verkettung von Methoden, sodass der Aufruf von getSingleResult mit demselben Ausdruck verkettet werden kann.
+<5> Queries ausführen, die ein einzelnes Ergebnisobjekt zurückgeben
+<6> Wenn es das Team schon gibt, dann liest man das Team aus der Tabelle und erstellt ein Objekt (der Klasse Team)
+<7> Dieses Objekt wird verwendet, um die Fahrer mit Ihrem jeweiligen Team in der Tabelle F1_DRIVER zu speichern
+
+== ENTITIES:
+=== #Driver.java#
+=== Falscher Code:
+[source,java]
+----
+@NamedQueries({
+        //...
+        @NamedQuery( //<1>
+                name = "Race.findByNAme",
+                query = "select d from Driver d where d.name = :NAME"
+        )
+})
+----
+<1> 2. NamedQuery ist falsch
+
+=== Richtiger Code:
+[source,java]
+----
+@NamedQueries({
+        @NamedQuery(
+                name = "Driver.findAll",
+                query = "select d from Driver d"
+        ),
+        @NamedQuery(
+                name = "Driver.findByName", // <1>
+                query = "select d from Driver d where d.name = :NAME" // <2>
+        )
+})
+
+//...
+@GeneratedValue(strategy = GenerationType.IDENTITY) // <3>
+----
+<1> Driver.
+<2> :NAME wegen dem .setParameter("NAME", line[0]) bei der persistTeamAndDrivers() Methode
+<3> The id's are assigned by the database ...deshalb @GeneratedValue
+
+=== #Race.java#
+=== Falscher Code:
+[source,java]
+----
+@NamedQueries({ //<1>
+        @NamedQuery(
+                name = "Race.findAll",
+                query = "select r from Race r"
+        )
+        //...
+})
+
+//...
+@GeneratedValue(strategy = GenerationType.IDENTITY) // <2>
+----
+<1> nicht nötig
+<2> wird nicht benötigt, weil ...The id's are not assigned by the database. The id's are given.
+
+=== Richtiger Code
+[source,java]
+----
+@NamedQuery(
+        name = "Race.findByCountry",
+        query = "select r from Race r where r.county = :COUNTRY"
+)
+----
+
+=== #Team.java#
+=== Falscher Code:
+(nicht gemacht)
+
+=== Richtiger Code:
+[source,java]
+----
+@Entity
+@Table(name = "F1_TEAM")
+@NamedQueries({
+        @NamedQuery(
+                name = "Team.findAll",
+                query = "select t from Team t"
+        ),
+        @NamedQuery(
+                name = "Team.findByName",
+                query = "select t from Team t where t.name = :NAME"
+        )
+})
+//...
+@Id
+----
+
+=== #Result.java#
+(erst nach ResultEndpoint.java machen)
+
+=== Falscher Code:
+(nicht gemacht)
+
+=== Richtiger Code:
+[source,java]
+----
+@Entity
+@Table(name = "F1_RESULT")
+@NamedQueries({
+        @NamedQuery(
+                name = "Result.sumPointsForDriver", // <1>
+                query = "select sum(r.points) from Result r where r.driver.name = :NAME"
+        ),
+        @NamedQuery(
+                name = "Result.findWinnerOfRace", // <2>
+                query = "select r1.driver from Result r1 where r1.race = :RACE" +
+                        "and r1.points >= all(select max(r2.points) from Result r2 where r2.race=r1.race)"
+        ),
+        @NamedQuery(
+                name = "Result.findRacesWonByTeam", //<3>
+                query = "select r.race from Result r where r.driver.team = :TEAM and r.position=1"
+        ),
+        @NamedQuery(
+                name = "Result.sumPointsForAllDrivers", // <4>
+                query = "select r.driver.name, sum(r.points) from Result r group by r.driver.name"
+        )
+})
+
+//...
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+----
+<1> für getPointsSumOfDriver() im ResultsEndpoint.java
+<2> für findWinnerOfRace() im ResultsEndpoint.java
+<3> für findRacesWonByTeam() im ResultsEndpoint.java
+<4> für getPointsSumOfAllDrivers() im ResultsEndpoint.java
+
+== Aufgabe 2: Import REST
+=== #readResultsFromEndpoint() (ResultsRestClient.java)#
+* Vom RestEndpoint werden alle Results abgeholt und in ein JsonArray gespeichert.
+* Dieses JsonArray wird an die Methode persistResult(...) übergeben
+
+=== Falscher Code:
+[source,java]
+----
+//...
+List<JsonObject> jsonArray = JsonValue.getValueArray(JsonObject.class); // <1>
+//...
+----
+<1> nicht nötig gewesen
+
+=== Richtiger Code:
+[source,java]
+----
+@PersistenceContext // <1>
+EntityManager em;
+
+//...
+client = ClientBuilder.newClient();
+        target = client.target(RESULTS_ENDPOINT);
+
+        Response response = this.target
+                .request(MediaType.APPLICATION_JSON)
+                .get();
+        JsonArray payload = response.readEntity(JsonArray.class);
+        persistResult(payload);
+----
+<1> hat außerhalb der Methode gefehlt
+
+=== #persistResult() (ResultsRestClient.java)#
+* Das JsonArray wird durchlaufen (iteriert). Man erhält dabei Objekte vom
+    Typ JsonValue. diese werden mit der Methode .asJsonObject() in ein
+    JsonObject umgewandelt.
+* Mit den entsprechenden get-Methoden können nun die einzelnen Werte
+    (raceNo, position und driverFullName) ausgelesen werden.
+* Mit dem driverFullName wird der entsprechende Driver aus der Datenbank ausgelesen.
+* Dieser Driver wird dann dem neu erstellten Result-Objekt übergeben
+
+=== Falscher Code:
+[source,java]
+----
+JsonObject jsonObj = new JsonObject(json.get("msg").toString());
+for (int i = 0; i < resultsJson.length(); i++){
+    JsonArray object = (JsonArray) resultsJson.getJsonObject(i);
+    System.out.println(jsonObj.getString("body"));
+}
+----
+
+=== Richtiger Code:
+[source,java]
+----
+for (JsonValue jsonValue : resultsJson) { // <1>
+    JsonObject resultJson = jsonValue.asJsonObject();
+    Driver driver = em // <2>
+                    .createNamedQuery("Driver.findByName", Driver.class)
+                    .setParameter("NAME", resultJson.getString("driverFullName")) //<3>
+                    .getSingleResult();
+
+    Race race = em //<2>
+                    .createQuery("select r from Race r where r.id = :ID", Race.class)
+                    .setParameter("ID", Long.valueOf(resultJson.getInt("raceNo")))
+                    .getSingleResult();
+
+    Result result = new Result(
+                    race,
+                    resultJson.getInt("position"),
+                    driver);
+
+    //Punkte vom Driver an einer gewissen Position kriegen
+    result.setPoints(result.pointsPerPosition[result.getPosition()]); //<5>
+
+    em.persist(result);
+}
+----
+<1> Das JsonArray wird durchlaufen (iteriert). Man erhält dabei Objekte vom
+    Typ JsonValue. diese werden mit der Methode .asJsonObject() in ein JsonObject umgewandelt.
+<2> Die einzelnen Werte (raceNo, position und driverFullName) können ausgelesen werden.
+<3> Mit dem driverFullName wird der entsprechende Driver aus der Datenbank ausgelesen.
+<4> Dieser Driver wird dann dem neu erstellten Result-Objekt übergeben
+<5> Errechnen der Punkte
+
+=== #ResultsEndpoint.java#
+(nicht gemacht)
+
+=== Errechnen der Punkte:
+(nicht gemacht)
+
+=== #persistResult() (ResultsRestClient.java)#
+* Punkte vom Driver an einer gewissen Position kriegen
+* (siehe Result.java -> public int[] pointsPerPosition)
+* (siehe persistResult() von ResultsRestClient.java)
+
+=== Richtiger Code:
+[source,java]
+----
+result.setPoints(result.pointsPerPosition[result.getPosition()]);
+----
+
+=== Ermitteln der Id des Fahrers
+(nicht gemacht)
+
+* (siehe getPointsSumOfDriver in ResultsEndpoint.java)
+
+
+== Aufgabe 3: Gesamtpunkte eines Fahrers
+=== #getPointsSumOfDriver() (ResultsEndpoint):#
+=== Falscher Code:
+(nicht gemacht)
+
+=== Richtiger Code:
+[source,java]
+----
+
+Driver driver = em // <1>
+                .createNamedQuery("Driver.findByName", Driver.class)
+                .setParameter("NAME", name)
+                .getSingleResult();
+
+Long points = em
+                .createNamedQuery("Result.sumPointsForDriver", Long.class)
+                .setParameter("NAME", name)
+                .getSingleResult();
+
+JsonObject jsonObj = Json.createObjectBuilder()
+                .add("driver", driver.getName())
+                .add("points", points)
+                .build();
+
+return jsonObj;
+----
+<1> Ermitteln der Id des Fahrers
+
+== Aufgabe 4: Sieger eines bestimmten Rennens
+=== #findWinnerOfRace() (ResultsEndpoint):#
+=== Falscher Code:
+(nicht gemacht)
+
+=== Richtiger Code:
+[source,java]
+----
+@GET
+@Path("winner/{country}") //<1>
+@Produces(MediaType.APPLICATION_JSON)
+public Response findWinnerOfRace(@PathParam("country") String country) {
+    Race race = em
+                .createNamedQuery("Race.findByCountry", Race.class)
+                .setParameter("COUNTRY" , country)
+                .getSingleResult();
+
+    Driver winnerDriver = em
+                .createNamedQuery("Driver.findWinnerOfRace", Driver.class)
+                .setParameter("RACE", race)
+                .getSingleResult();
+
+    return Response.ok(winnerDriver).build();
+}
+----
+<1> In der Aufgabenstellung ist ein Request angegeben: GET http://localhost:8080/formula1/api/results/winner/Spain
+    ...im Pfad steht winner vor der Stadt, deshalb winner/{country}
+
+== Aufgabe 5: Liste der Rennen, die ein Team gewonnen hat
+=== Falscher Code:
+(nicht gemacht)
+
+=== Richtiger Code:
+[source,java]
+----
+@GET
+@Path("raceswon")
+public Response findRacesWonByTeam(@QueryParam("team") String team){
+        Team team1 = em
+                .createNamedQuery("Team.findByName", Team.class)
+                .setParameter("NAME", team)
+                .getSingleResult();
+
+        List<Race> racesWon = em
+                .createNamedQuery("Race.findRacesWonByTeam", Race.class)
+                .setParameter("TEAM", team)
+                .getResultList();
+
+        return Response.ok(racesWon).build();
+}
+----
+
+== Aufgabe 6 (für Spezialisten): Liste aller Fahrer mit ihren Punkten
+=== Falscher Code:
+(nicht gemacht)
+
+=== Richtiger Code:
+[source,java]
+----
+ @GET
+@Path("all")
+@Produces(MediaType.APPLICATION_JSON)
+public Response getPointsSumOfAllDrivers(){
+        List<Object[]> points = em
+                .createNamedQuery("Result.sumPointsForAllDrivers", Object[].class)
+                .getResultList();
+
+        return Response.ok(points).build();
+}
+----
