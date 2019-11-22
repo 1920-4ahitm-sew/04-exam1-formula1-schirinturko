@@ -10,6 +10,12 @@ import java.time.LocalDate;
  */
 @Entity
 @Table(name = "F1_RACES")
+@NamedQueries({
+        @NamedQuery(
+                name = "Race.findByCountry",
+                query = "select r from Race r where r.country = :COUNTRY"
+        )
+})
 public class Race {
     @Id
     private Long id;
