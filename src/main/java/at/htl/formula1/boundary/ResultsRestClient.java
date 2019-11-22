@@ -46,18 +46,18 @@ public class ResultsRestClient {
      * Das JsonArray wird durchlaufen (iteriert). Man erhäjt dabei Objekte vom
      * Typ JsonValue. diese werden mit der Methode .asJsonObject() in ein
      * JsonObject umgewandelt.
-     *
+     * <p>
      * zB:
      * for (JsonValue jsonValue : resultsJson) {
-     *             JsonObject resultJson = jsonValue.asJsonObject();
-     *             ...
-     *
-     *  Mit den entsprechenden get-Methoden können nun die einzelnen Werte
-     *  (raceNo, position und driverFullName) ausgelesen werden.
-     *
-     *  Mit dem driverFullName wird der entsprechende Driver aus der Datenbank ausgelesen.
-     *
-     *  Dieser Driver wird dann dem neu erstellten Result-Objekt übergeben
+     * JsonObject resultJson = jsonValue.asJsonObject();
+     * ...
+     * <p>
+     * Mit den entsprechenden get-Methoden können nun die einzelnen Werte
+     * (raceNo, position und driverFullName) ausgelesen werden.
+     * <p>
+     * Mit dem driverFullName wird der entsprechende Driver aus der Datenbank ausgelesen.
+     * <p>
+     * Dieser Driver wird dann dem neu erstellten Result-Objekt übergeben
      *
      * @param resultsJson
      */
@@ -75,11 +75,17 @@ public class ResultsRestClient {
                     .setParameter("ID", Long.valueOf(resultJson.getInt("raceNo")))
                     .getSingleResult();
 
-            em.persist(new Result(
+            Result result = new Result(
                     race,
                     resultJson.getInt("position"),
-                    driver
-            ));
+                    driver);
+
+            //Punkte vom Driver an einer gewissen Position kriegen
+            result.setPoints(result.pointsPerPosition[result.getPosition()]);
+
+            em.persist(result);
+
+
         }
     }
 
